@@ -108,7 +108,7 @@ const operations: operation[] = [
     fields: { author: "input", root: "input", content: "input" },
   },
   {
-    name: "Create Comment",
+    name: "Create Tag",
     endpoint: "/api/tags",
     method: "POST",
     fields: { content: "input", root: "input" },
