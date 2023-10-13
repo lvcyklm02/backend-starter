@@ -10,6 +10,8 @@ export interface PostOptions {
 export interface PostDoc extends BaseDoc {
   author: ObjectId;
   content: string;
+  comments: Array<ObjectId>;
+  tags: Array<ObjectId>;
   options?: PostOptions;
 }
 
@@ -17,7 +19,8 @@ export default class PostConcept {
   public readonly posts = new DocCollection<PostDoc>("posts");
 
   async create(author: ObjectId, content: string, options?: PostOptions) {
-    const _id = await this.posts.createOne({ author, content, options });
+    const comments: Array<ObjectId> = [];
+    const _id = await this.posts.createOne({ author, content, comments, options });
     return { msg: "Post successfully created!", post: await this.posts.readOne({ _id }) };
   }
 
@@ -28,6 +31,20 @@ export default class PostConcept {
     return posts;
   }
 
+  async getPostById(_id: ObjectId) {
+    const post = await this.posts.readOne({ _id });
+    if (post === null) {
+      throw new NotFoundError(`Post not found!`);
+    }
+    return post;
+  }
+
+  async idsToRootAuthorIds(ids: ObjectId[]) {
+    const posts = await this.posts.readMany({ _id: { $in: ids } });
+
+    return posts.map((post) => post.author);
+  }
+
   async getByAuthor(author: ObjectId) {
     return await this.getPosts({ author });
   }
@@ -36,6 +53,36 @@ export default class PostConcept {
     this.sanitizeUpdate(update);
     await this.posts.updateOne({ _id }, update);
     return { msg: "Post successfully updated!" };
+  }
+
+  async getCommentIds(_id: ObjectId) {
+    const post = await this.getPostById(_id);
+    console.log("received comments", post.comments);
+    return post.comments;
+  }
+
+  async addCommentId(_id: ObjectId, comment_id: ObjectId) {
+    const comments = await this.getCommentIds(_id);
+    const comments_copy = [...comments];
+    comments_copy.push(comment_id);
+
+    await this.update(_id, { comments: comments_copy });
+    return { msg: "Comment added to post!" };
+  }
+
+  async getTagIds(_id: ObjectId) {
+    const post = await this.getPostById(_id);
+    console.log("received tags", post.tags);
+    return post.tags;
+  }
+
+  async addTagId(_id: ObjectId, tag_id: ObjectId) {
+    const tags = await this.getTagIds(_id);
+    const tags_copy = [...tags];
+    tags_copy.push(tag_id);
+
+    await this.update(_id, { tags: tags_copy });
+    return { msg: "Tag added to post!" };
   }
 
   async delete(_id: ObjectId) {
@@ -55,7 +102,7 @@ export default class PostConcept {
 
   private sanitizeUpdate(update: Partial<PostDoc>) {
     // Make sure the update cannot change the author.
-    const allowedUpdates = ["content", "options"];
+    const allowedUpdates = ["content", "options", "comments", "tags"];
     for (const key in update) {
       if (!allowedUpdates.includes(key)) {
         throw new NotAllowedError(`Cannot update '${key}' field!`);

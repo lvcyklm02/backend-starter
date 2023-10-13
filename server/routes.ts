@@ -2,7 +2,8 @@ import { ObjectId } from "mongodb";
 
 import { Router, getExpressRouter } from "./framework/router";
 
-import { Friend, Post, User, WebSession } from "./app";
+import { Comment, Friend, Post, Tag, User, WebSession } from "./app";
+import { CommentDoc } from "./concepts/comment";
 import { PostDoc, PostOptions } from "./concepts/post";
 import { UserDoc } from "./concepts/user";
 import { WebSessionDoc } from "./concepts/websession";
@@ -135,6 +136,92 @@ class Routes {
     const user = WebSession.getUser(session);
     const fromId = (await User.getUserByUsername(from))._id;
     return await Friend.rejectRequest(fromId, user);
+  }
+
+  // COMMENT CONCEPT
+
+  @Router.get("/comments")
+  async getComments(author?: string) {
+    /**
+     * converts postId to poster's username and authorId to username for readability
+     */
+    let comments;
+    if (author) {
+      const id = (await User.getUserByUsername(author))._id;
+      comments = await Comment.getByAuthor(id);
+    } else {
+      comments = await Comment.getComments({});
+    }
+    return Responses.comments(comments);
+  }
+
+  @Router.post("/comments")
+  async createComment(session: WebSessionDoc, content: string, root: ObjectId) {
+    const rootType: string = "Post";
+    const user = WebSession.getUser(session);
+    const created = await Comment.create(user, content, root);
+
+    if (!created.comment) {
+      throw Error("No comment created");
+    }
+    const comment_id = created.comment._id;
+
+    // also add to the options of the related post
+    if (rootType === "Post") {
+      await Post.addCommentId(root, comment_id);
+    }
+
+    return { msg: created.msg, Comment: await Responses.comment(created.comment) };
+  }
+
+  @Router.patch("/comments/:_id")
+  async updateComment(session: WebSessionDoc, _id: ObjectId, update: Partial<CommentDoc>) {
+    const user = WebSession.getUser(session);
+    await Comment.isAuthor(user, _id);
+    return await Comment.update(_id, update);
+  }
+
+  @Router.delete("/comments/:_id")
+  async deleteComment(session: WebSessionDoc, _id: ObjectId) {
+    const user = WebSession.getUser(session);
+    await Comment.isAuthor(user, _id);
+    return Comment.delete(_id);
+  }
+
+  // TAG CONCEPT
+
+  @Router.get("/tags")
+  async getTags(author?: string) {
+    /**
+     * converts postId to poster's username and authorId to username for readability
+     */
+    let tags;
+    if (author) {
+      const id = (await User.getUserByUsername(author))._id;
+      tags = await Tag.getByAuthor(id);
+    } else {
+      tags = await Tag.getTags({});
+    }
+    return tags;
+  }
+
+  @Router.post("/tags")
+  async createTag(session: WebSessionDoc, content: string, root: ObjectId) {
+    const rootType: string = "Post";
+    const user = WebSession.getUser(session);
+    const created = await Tag.create(user, content, root);
+
+    if (!created.tag) {
+      throw Error("No tag created");
+    }
+    const tag_id = created.tag._id;
+
+    // also add to the options of the related post
+    if (rootType === "Post") {
+      await Post.addTagId(root, tag_id);
+    }
+
+    return { msg: created.msg, tag: created.tag };
   }
 }
 
