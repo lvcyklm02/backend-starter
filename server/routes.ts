@@ -2,7 +2,7 @@ import { ObjectId } from "mongodb";
 
 import { Router, getExpressRouter } from "./framework/router";
 
-import { Comment, Friend, Post, Tag, User, WebSession } from "./app";
+import { Comment, Friend, Post, Technique, User, WebSession } from "./app";
 import { CommentDoc } from "./concepts/comment";
 import { PostDoc, PostOptions } from "./concepts/post";
 import { UserDoc } from "./concepts/user";
@@ -190,7 +190,7 @@ class Routes {
 
   // TAG CONCEPT
 
-  @Router.get("/tags")
+  @Router.get("/techniques")
   async getTags(author?: string) {
     /**
      * converts postId to poster's username and authorId to username for readability
@@ -198,18 +198,17 @@ class Routes {
     let tags;
     if (author) {
       const id = (await User.getUserByUsername(author))._id;
-      tags = await Tag.getByAuthor(id);
+      tags = await Technique.getByAuthor(id);
     } else {
-      tags = await Tag.getTags({});
+      tags = await Technique.getTags({});
     }
     return tags;
   }
 
-  @Router.post("/tags")
+  @Router.post("/techniques")
   async createTag(session: WebSessionDoc, content: string, root: ObjectId) {
-    const rootType: string = "Post";
     const user = WebSession.getUser(session);
-    const created = await Tag.create(user, content, root);
+    const created = await Technique.create(user, content, root);
 
     if (!created.tag) {
       throw Error("No tag created");
@@ -217,9 +216,7 @@ class Routes {
     const tag_id = created.tag._id;
 
     // also add to the options of the related post
-    if (rootType === "Post") {
-      await Post.addTagId(root, tag_id);
-    }
+    await Post.addTagId(root, tag_id);
 
     return { msg: created.msg, tag: created.tag };
   }
