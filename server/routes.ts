@@ -191,14 +191,15 @@ class Routes {
   // TAG CONCEPT
 
   @Router.get("/techniques")
-  async getTags(author?: string) {
-    /**
-     * converts postId to poster's username and authorId to username for readability
-     */
+  async getTechniques(author?: string, root?: ObjectId, content?: string) {
     let tags;
     if (author) {
       const id = (await User.getUserByUsername(author))._id;
       tags = await Technique.getByAuthor(id);
+    } else if (content) {
+      tags = await Technique.getTags({ content });
+    } else if (root) {
+      tags = await Technique.getByRoot(root);
     } else {
       tags = await Technique.getTags({});
     }
@@ -206,7 +207,7 @@ class Routes {
   }
 
   @Router.post("/techniques")
-  async createTag(session: WebSessionDoc, content: string, root: ObjectId) {
+  async createTechniques(session: WebSessionDoc, content: string, root: ObjectId) {
     const user = WebSession.getUser(session);
     const created = await Technique.create(user, content, root);
 
@@ -215,9 +216,7 @@ class Routes {
     }
     const tag_id = created.tag._id;
 
-    // also add to the options of the related post
     await Post.addTechniqueId(root, tag_id);
-
     return { msg: created.msg, tag: created.tag };
   }
 }

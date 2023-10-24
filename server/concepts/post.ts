@@ -103,7 +103,7 @@ export default class PostConcept {
 
   private sanitizeUpdate(update: Partial<PostDoc>) {
     // Make sure the update cannot change the author.
-    const allowedUpdates = ["content", "options", "comments", "tags"];
+    const allowedUpdates = ["content", "options", "comments", "techniques"];
     for (const key in update) {
       if (!allowedUpdates.includes(key)) {
         throw new NotAllowedError(`Cannot update '${key}' field!`);
