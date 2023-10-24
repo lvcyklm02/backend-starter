@@ -216,7 +216,7 @@ class Routes {
     const tag_id = created.tag._id;
 
     // also add to the options of the related post
-    await Post.addTagId(root, tag_id);
+    await Post.addTechniqueId(root, tag_id);
 
     return { msg: created.msg, tag: created.tag };
   }

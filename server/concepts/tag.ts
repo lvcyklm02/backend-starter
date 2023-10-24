@@ -7,7 +7,6 @@ export interface TagDoc<T> extends BaseDoc {
   author: ObjectId; // used to check exclusive tag rights
   content: T;
   root: ObjectId;
-  exclusive: Boolean; //only one per post, must be assigned by author
 }
 
 export default class TagConcept<T> {
@@ -20,15 +19,25 @@ export default class TagConcept<T> {
 
   async create(author: ObjectId, content: T, root: ObjectId) {
     const exclusive = this.exclusive;
-    const _id = await this.tags.createOne({ author, content, root, exclusive });
-    return { msg: "Comment successfully created!", tag: await this.tags.readOne({ _id }) };
+    const already_exist = await this.getByAuthor(author);
+
+    const _id = await this.tags.createOne({ author, content, root });
+    let msg: string = "";
+
+    if (exclusive && already_exist) {
+      await this.delete(already_exist[0]._id);
+      msg = "Tag existed and now overwritten!";
+    } else {
+      msg = "Tag successfully created!";
+    }
+    return { msg: msg, tag: await this.tags.readOne({ _id }) };
   }
 
   async getTags(query: Filter<TagDoc<T>>) {
-    const comment = await this.tags.readMany(query, {
+    const tag = await this.tags.readMany(query, {
       sort: { dateUpdated: -1 },
     });
-    return comment;
+    return tag;
   }
 
   async getByAuthor(author: ObjectId) {

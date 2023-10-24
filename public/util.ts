@@ -102,14 +102,14 @@ const operations: operation[] = [
     fields: { id: "input" },
   },
   {
-    name: "Get Tags (empty for all)",
-    endpoint: "/api/tags",
+    name: "Get Techniques (empty for all)",
+    endpoint: "/api/techniques",
     method: "GET",
     fields: { author: "input", root: "input", content: "input" },
   },
   {
-    name: "Create Tag",
-    endpoint: "/api/tags",
+    name: "Create Technique",
+    endpoint: "/api/techniques",
     method: "POST",
     fields: { content: "input", root: "input" },
   },

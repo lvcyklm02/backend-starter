@@ -11,7 +11,7 @@ export interface PostDoc extends BaseDoc {
   author: ObjectId;
   content: string;
   comments: Array<ObjectId>;
-  tags: Array<ObjectId>;
+  techniques: Array<ObjectId>;
   options?: PostOptions;
 }
 
@@ -20,7 +20,8 @@ export default class PostConcept {
 
   async create(author: ObjectId, content: string, options?: PostOptions) {
     const comments: Array<ObjectId> = [];
-    const _id = await this.posts.createOne({ author, content, comments, options });
+    const techniques: Array<ObjectId> = [];
+    const _id = await this.posts.createOne({ author, content, comments, techniques, options });
     return { msg: "Post successfully created!", post: await this.posts.readOne({ _id }) };
   }
 
@@ -70,19 +71,19 @@ export default class PostConcept {
     return { msg: "Comment added to post!" };
   }
 
-  async getTagIds(_id: ObjectId) {
+  async getTechniqueIds(_id: ObjectId) {
     const post = await this.getPostById(_id);
-    console.log("received tags", post.tags);
-    return post.tags;
+    console.log("received tags", post.techniques);
+    return post.techniques;
   }
 
-  async addTagId(_id: ObjectId, tag_id: ObjectId) {
-    const tags = await this.getTagIds(_id);
-    const tags_copy = [...tags];
-    tags_copy.push(tag_id);
+  async addTechniqueId(_id: ObjectId, technique_id: ObjectId) {
+    const techniques = await this.getTechniqueIds(_id);
+    const techniques_copy = [...techniques];
+    techniques_copy.push(technique_id);
 
-    await this.update(_id, { tags: tags_copy });
-    return { msg: "Tag added to post!" };
+    await this.update(_id, { techniques: techniques_copy });
+    return { msg: "Technique added to post!" };
   }
 
   async delete(_id: ObjectId) {
