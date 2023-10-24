@@ -4,6 +4,7 @@ import { BadValuesError, NotAllowedError, NotFoundError } from "./errors";
 
 export interface UserDoc extends BaseDoc {
   username: string;
+  // type: "dancer" | "organizer";
   password: string;
 }
 

@@ -2,7 +2,7 @@ import { ObjectId } from "mongodb";
 
 import { Router, getExpressRouter } from "./framework/router";
 
-import { Comment, Friend, Post, Technique, User, WebSession } from "./app";
+import { Comment, Event, Friend, Post, Technique, User, WebSession } from "./app";
 import { CommentDoc } from "./concepts/comment";
 import { PostDoc, PostOptions } from "./concepts/post";
 import { UserDoc } from "./concepts/user";
@@ -219,6 +219,58 @@ class Routes {
     await Post.addTechniqueId(root, tag_id);
     return { msg: created.msg, tag: created.tag };
   }
+
+  // EVENT CONCEPT
+  @Router.get("/events")
+  async getEvents(organizer?: string) {
+    let events;
+    if (organizer) {
+      const id = (await User.getUserByUsername(organizer))._id;
+      events = await Event.getByOrganizer(id);
+    } else {
+      events = await Event.getEvents({});
+    }
+
+    return events;
+  }
+
+  @Router.get("/events/active")
+  async getActiveEvents(organizer?: string) {
+    let events;
+    if (organizer) {
+      const id = (await User.getUserByUsername(organizer))._id;
+      events = await Event.getActiveByOrganizer(id);
+    } else {
+      events = await Event.getActiveEvents({});
+    }
+    return events;
+  }
+
+  @Router.post("/events")
+  async createEvent(session: WebSessionDoc, content: string, capacity: number, month: number, day: number, startHour: number, startMinute: number, endHour: number, endMinute: number) {
+    const organizer = WebSession.getUser(session);
+    const year = new Date().getFullYear();
+    const monthIndex = month - 1;
+
+    const start = new Date(year, monthIndex, day, startHour, startMinute);
+    const end = new Date(year, monthIndex, day, endHour, endMinute);
+    const event = await Event.create(organizer, content, capacity, start, end);
+    return { msg: "Event created!", event: event };
+  }
+
+  @Router.delete("/events/:_id")
+  async deleteEvent(_id: ObjectId) {
+    return;
+  }
+
+  @Router.patch("/events/:_id")
+  async registerForEvent() {}
+
+  @Router.patch("/events/:_id")
+  async unregisterForEvent() {}
+
+  @Router.patch("/events/:_id")
+  async updateEvent() {}
 }
 
 export default getExpressRouter(new Routes());
