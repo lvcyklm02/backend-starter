@@ -19,13 +19,13 @@ export interface EventDoc extends BaseDoc {
 }
 
 export default class EventConcept {
-  public readonly events = new DocCollection<EventDoc>("posts");
+  public readonly events = new DocCollection<EventDoc>("events");
 
   async create(organizer: ObjectId, content: string, capacity: number, start: Date, end: Date, options?: EventOptions) {
     const roster: Array<ObjectId> = [];
     const status = "active";
     const _id = await this.events.createOne({ organizer, content, capacity, roster, start, end, status, options });
-    return { msg: "Event successfully created!", post: await this.events.readOne({ _id }) };
+    return { msg: "Event successfully created!", event: await this.events.readOne({ _id }) };
   }
 
   async getEvents(query: Filter<EventDoc>) {
@@ -48,14 +48,28 @@ export default class EventConcept {
     return event;
   }
 
-  //   async idsToRootOrganizerIds(ids: ObjectId[]) {
-  //     const events = await this.events.readMany({ _id: { $in: ids } });
+  async idsToRootOrganizerIds(ids: ObjectId[]) {
+    const events = await this.events.readMany({ _id: { $in: ids } });
 
-  //     return events.map((event) => event.organizer);
-  //   }
+    return events.map((event) => event.organizer);
+  }
 
   async getByOrganizer(organizer: ObjectId) {
     return await this.getEvents({ organizer });
+  }
+
+  async getActiveByUser(organizer: ObjectId) {
+    const events = await this.getEvents({});
+    const eventRosters = new Map(events.map((event) => [event.roster, event._id]));
+    const usersEvents: Array<ObjectId> = [];
+
+    eventRosters.forEach((event_id, roster) => {
+      if (organizer.toString() in roster.map((user_id) => user_id.toString())) {
+        usersEvents.push(event_id);
+      }
+    });
+
+    return this.filterByActive(usersEvents);
   }
 
   async getActiveByOrganizer(organizer: ObjectId) {
@@ -63,7 +77,13 @@ export default class EventConcept {
     return events.filter((event) => event.status === "active");
   }
 
-  async update(_id: ObjectId, update: Partial<EventDoc>) {
+  async filterByActive(ids: Array<ObjectId>) {
+    const eventPromises = ids.map((id) => this.getEventById(id));
+    const events: EventDoc[] = await Promise.all(eventPromises);
+    return events.filter((event) => event.status === "active");
+  }
+
+  async updateEvent(_id: ObjectId, update: Partial<EventDoc>) {
     this.sanitizeUpdate(update);
     await this.events.updateOne({ _id }, update);
     return { msg: "Event successfully updated!" };
@@ -99,12 +119,13 @@ export default class EventConcept {
     // Only add user if not at capacity and user not in event
     await this.isNotFull(_id);
     await this.isNotRegistered(_id, user_id);
+    await this.isNotOrganizer(user_id, _id);
 
     const users = await this.getRosterUserIds(_id);
     const users_copy = [...users];
     users_copy.push(user_id);
 
-    await this.update(_id, { roster: users_copy });
+    await this.updateEvent(_id, { roster: users_copy });
     return { msg: "User added to roster!" };
   }
 
@@ -118,7 +139,7 @@ export default class EventConcept {
         users_copy.push(user);
       }
     }
-    await this.update(_id, { roster: users_copy });
+    await this.updateEvent(_id, { roster: users_copy });
     return { msg: "User deleted from roster!" };
   }
 
@@ -137,15 +158,25 @@ export default class EventConcept {
     }
   }
 
-  async cancelEvent(_id: ObjectId) {
-    const status = "cancelled";
-    await this.events.updateOne({ _id }, { status });
-    return { msg: "Event successfully cancelled!" };
+  async isNotOrganizer(user: ObjectId, _id: ObjectId) {
+    const event = await this.events.readOne({ _id });
+    if (!event) {
+      throw new NotFoundError(`Event ${_id} does not exist!`);
+    }
+    if (event.organizer.toString() === user.toString()) {
+      throw new OrganizerCannotRegister(_id);
+    }
   }
 
   async updateStatus(_id: ObjectId, status: "complete" | "active" | "cancelled") {
     await this.events.updateOne({ _id }, { status });
     return { msg: "Event status successfully updated!" };
+  }
+
+  async cancelEvent(_id: ObjectId) {
+    const status = "cancelled";
+    await this.events.updateOne({ _id }, { status });
+    return { msg: "Event successfully cancelled!" };
   }
 
   async updateStatusAutomated() {
@@ -166,7 +197,7 @@ export default class EventConcept {
 
   private sanitizeUpdate(update: Partial<EventDoc>) {
     // Make sure the update cannot change the author.
-    const allowedUpdates = ["content", "roster", "options", "comments", "capacity", "start", "end", "status"];
+    const allowedUpdates = ["content", "roster", "options", "capacity", "start", "end", "status"];
     for (const key in update) {
       if (!allowedUpdates.includes(key)) {
         throw new NotAllowedError(`Cannot update '${key}' field!`);
@@ -205,5 +236,11 @@ export class NotRegisteredError extends NotAllowedError {
 export class AlreadyFullError extends NotAllowedError {
   constructor(public readonly _id: ObjectId) {
     super("Event {0} is already full!", _id);
+  }
+}
+
+export class OrganizerCannotRegister extends NotAllowedError {
+  constructor(public readonly _id: ObjectId) {
+    super("Cannot register for your own Event {0}", _id);
   }
 }

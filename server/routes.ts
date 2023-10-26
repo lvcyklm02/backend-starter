@@ -4,6 +4,7 @@ import { Router, getExpressRouter } from "./framework/router";
 
 import { Comment, Event, Friend, Post, Technique, User, WebSession } from "./app";
 import { CommentDoc } from "./concepts/comment";
+import { EventDoc } from "./concepts/event";
 import { PostDoc, PostOptions } from "./concepts/post";
 import { UserDoc } from "./concepts/user";
 import { WebSessionDoc } from "./concepts/websession";
@@ -235,11 +236,14 @@ class Routes {
   }
 
   @Router.get("/events/active")
-  async getActiveEvents(organizer?: string) {
+  async getActiveEvents(organizer?: string, user?: string) {
     let events;
     if (organizer) {
       const id = (await User.getUserByUsername(organizer))._id;
       events = await Event.getActiveByOrganizer(id);
+    } else if (user) {
+      const id = (await User.getUserByUsername(user))._id;
+      events = await Event.getActiveByUser(id);
     } else {
       events = await Event.getActiveEvents({});
     }
@@ -255,22 +259,41 @@ class Routes {
     const start = new Date(year, monthIndex, day, startHour, startMinute);
     const end = new Date(year, monthIndex, day, endHour, endMinute);
     const event = await Event.create(organizer, content, capacity, start, end);
-    return { msg: "Event created!", event: event };
+    return event;
   }
 
   @Router.delete("/events/:_id")
-  async deleteEvent(_id: ObjectId) {
-    return;
+  async deleteEvent(session: WebSessionDoc, _id: ObjectId) {
+    const user = WebSession.getUser(session);
+    await Event.isOrganizer(user, _id);
+    return Event.delete(_id);
+  }
+
+  @Router.patch("/events/register/:_id")
+  async registerForEvent(session: WebSessionDoc, _id: ObjectId) {
+    const user = WebSession.getUser(session);
+    return await Event.addRosterUserId(_id, user);
+  }
+
+  @Router.patch("/events/unregister/:_id")
+  async unregisterForEvent(session: WebSessionDoc, _id: ObjectId) {
+    const user = WebSession.getUser(session);
+    return await Event.deleteRosterUserId(_id, user);
+  }
+
+  @Router.patch("/events/cancel/:_id")
+  async cancelEvent(session: WebSessionDoc, _id: ObjectId) {
+    const user = WebSession.getUser(session);
+    await Event.isOrganizer(user, _id);
+    return Event.cancelEvent(_id);
   }
 
   @Router.patch("/events/:_id")
-  async registerForEvent() {}
-
-  @Router.patch("/events/:_id")
-  async unregisterForEvent() {}
-
-  @Router.patch("/events/:_id")
-  async updateEvent() {}
+  async updateEvent(session: WebSessionDoc, _id: ObjectId, update: Partial<EventDoc>) {
+    const user = WebSession.getUser(session);
+    await Event.isOrganizer(user, _id);
+    return Event.updateEvent(_id, update);
+  }
 }
 
 export default getExpressRouter(new Routes());

@@ -113,6 +113,54 @@ const operations: operation[] = [
     method: "POST",
     fields: { content: "input", root: "input" },
   },
+  {
+    name: "Get All Events",
+    endpoint: "/api/events",
+    method: "GET",
+    fields: { organizer: "input" },
+  },
+  {
+    name: "Get Active Events",
+    endpoint: "/api/events/active",
+    method: "GET",
+    fields: { organizer: "input", dancer: "input" },
+  },
+  {
+    name: "Create Event",
+    endpoint: "/api/events",
+    method: "POST",
+    fields: { content: "input", capacity: "input", month: "input", day: "input", startHour: "input", startMinute: "input", endHour: "input", endMinute: "input" },
+  },
+  {
+    name: "Delete Event",
+    endpoint: "/api/events/:_id",
+    method: "DELETE",
+    fields: { _id: "input" },
+  },
+  {
+    name: "Register for Event",
+    endpoint: "/api/events/register/:_id",
+    method: "PATCH",
+    fields: { _id: "input" },
+  },
+  {
+    name: "Unregister for Event",
+    endpoint: "/api/events/unregister/:_id",
+    method: "PATCH",
+    fields: { _id: "input" },
+  },
+  {
+    name: "Cancel Event",
+    endpoint: "/api/events/cancel/:_id",
+    method: "PATCH",
+    fields: { _id: "input" },
+  },
+  {
+    name: "Update Event",
+    endpoint: "/api/events/cancel/:_id",
+    method: "PATCH",
+    fields: { _id: "input", update: { content: "input", roster: "input", comments: "input", capacity: "input", status: "input" } },
+  },
 ];
 
 // Do not edit below here.
